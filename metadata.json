@@ -1,0 +1,6 @@
+{
+  "name": "The Hunger Zone (Pure Veg)",
+  "description": "Mobile-first food ordering app for The Hunger Zone Pure Veg Family Restaurant featuring KFC-style layout, amber golden theme, interactive cart, and pure vegetarian dishes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

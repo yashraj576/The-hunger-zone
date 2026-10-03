@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>The Hunger Zone (Pure Veg) - Mobile Ordering</title>
+  <meta name="description" content="Mobile-first food ordering app for The Hunger Zone Pure Veg Family Restaurant featuring KFC-style layout, amber golden theme, interactive cart, and pure vegetarian dishes." />
+  <meta property="og:title" content="The Hunger Zone (Pure Veg)" />
+  <meta property="og:description" content="100% Pure Vegetarian Delights. Order Starters, Rolls, Dosas, Chinese, Main Course & Thalis." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome 6 Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            amber: {
+              50: '#FFFBEB',
+              100: '#FEF3C7',
+              200: '#FDE68A',
+              300: '#FCD34D',
+              400: '#FBBF24',
+              500: '#F59E0B', // Primary Amber
+              600: '#D97706', // Deep Amber
+              700: '#B45309',
+              800: '#92400E',
+              900: '#78350F',
+            },
+            cream: '#FDFBF7',
+            charcoal: '#1F2937',
+            vegGreen: '#16A34A',
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+          },
+          boxShadow: {
+            'amber-glow': '0 10px 25px -3px rgba(245, 158, 11, 0.35), 0 4px 6px -4px rgba(245, 158, 11, 0.2)',
+            'card': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+            'bottom-bar': '0 -4px 25px rgba(0, 0, 0, 0.07)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Firebase App & Firestore Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      background-color: #0f1115;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .kfc-stripes {
+      background: repeating-linear-gradient(
+        -45deg,
+        rgba(245, 158, 11, 0.16),
+        rgba(245, 158, 11, 0.16) 12px,
+        transparent 12px,
+        transparent 24px
+      );
+    }
+    .veg-symbol {
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid #16a34a;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+    .veg-symbol .dot {
+      width: 6px;
+      height: 6px;
+      background-color: #16a34a;
+      border-radius: 50%;
+    }
+    .tap-bounce:active {
+      transform: scale(0.96);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .animate-slide-up {
+      animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body class="flex justify-center items-center min-h-screen text-charcoal">
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- Main Mobile App Shell (KFC Mobile Dimensions) -->
+  <div id="app" class="w-full max-w-md bg-cream min-h-screen relative shadow-2xl flex flex-col overflow-x-hidden pb-24 border-x border-amber-900/10">
+
+    <!-- TOP HEADER -->
+    <header class="sticky top-0 z-30 bg-cream/95 backdrop-blur-md px-4 pt-3 pb-2 border-b border-amber-200/50">
+      <div class="flex items-center justify-between">
+        <!-- Logo & Greeting -->
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-gray-950 font-black shadow-md shadow-amber-500/30">
+            <i class="fa-solid fa-utensils text-lg"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold tracking-wider text-amber-700 uppercase bg-amber-100/90 px-2 py-0.5 rounded-full">
+                Welcome, Foodie! 🌿
+              </span>
+            </div>
+            <h1 class="text-lg font-black text-gray-900 tracking-tight leading-tight flex items-center gap-1.5">
+              The Hunger Zone
+              <span class="veg-symbol" title="100% Pure Vegetarian">
+                <span class="dot"></span>
+              </span>
+            </h1>
+            <p class="text-[10px] text-gray-500 font-semibold tracking-wide">Pure Veg Family Restaurant</p>
+          </div>
+        </div>
+
+        <!-- Google Sign-In & Cart Quick Actions -->
+        <div class="flex items-center gap-1.5">
+          <!-- Google Auth Pill Button -->
+          <button id="btnHeaderGoogleAuth" onclick="window.openGoogleAuthModal()" class="flex items-center gap-1 bg-white border border-gray-200/90 hover:border-amber-400 px-2.5 py-1.5 rounded-full tap-bounce shadow-xs transition-all text-xs font-bold text-gray-800" title="Google Sign-In">
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+            <span id="headerAuthLabel" class="max-w-[70px] truncate">Sign In</span>
+          </button>
+
+          <!-- Notification Bell -->
+          <button id="btnOpenNotifications" class="w-9 h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-gray-700 hover:text-amber-600 relative tap-bounce shadow-sm" aria-label="Notifications">
+            <i class="fa-regular fa-bell text-sm"></i>
+            <span id="notifBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-gray-950 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-cream">2</span>
+          </button>
+
+          <!-- Top Cart Icon -->
+          <button id="btnTopCart" class="w-9 h-9 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-gray-950 flex items-center justify-center relative tap-bounce shadow-amber-glow" aria-label="Cart">
+            <i class="fa-solid fa-bag-shopping text-sm"></i>
+            <span id="topCartCount" class="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-gray-900 text-amber-400 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-cream">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SEARCH BAR & FILTER -->
+      <div class="mt-3 flex items-center gap-2">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Search Paneer Tikka, Dosa, Chilly..." 
+            class="w-full bg-white text-gray-800 placeholder-gray-400 text-xs pl-9 pr-8 py-2.5 rounded-full border border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all shadow-sm"
+          />
+          <button id="clearSearch" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <button id="btnFilterToggle" class="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-700 hover:text-amber-600 tap-bounce shadow-sm" title="Filters">
+          <i class="fa-solid fa-sliders text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Clean Location / Store Tag -->
+      <div class="mt-2 flex items-center justify-between text-[11px] font-bold text-gray-600">
+        <div class="flex items-center gap-1.5 bg-amber-500/10 px-2.5 py-1 rounded-full text-amber-900">
+          <i class="fa-solid fa-location-dot text-amber-600 text-xs"></i>
+          <span class="truncate max-w-[170px]">Main Road, Central Food Court</span>
+        </div>
+        <div class="flex items-center gap-1 text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Open • Free Delivery on UPI</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- TAB VIEW 1: HOME -->
+    <div id="homeView" class="flex-1 flex flex-col space-y-4 px-4 pt-3">
+
+      <!-- FLUID AUTO-SLIDING HERO BANNER (3 Rotating Banners with Dots) -->
+      <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-950 via-gray-900 to-amber-950 text-white p-4.5 shadow-xl border border-amber-500/30">
+        <div class="absolute inset-0 kfc-stripes pointer-events-none opacity-40"></div>
+        <div class="absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-amber-500/20 blur-2xl pointer-events-none"></div>
+
+        <div id="heroBannerContent">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Slider Dots -->
+        <div id="heroCarouselDots" class="relative z-10 flex items-center justify-center gap-1.5 mt-3">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- HORIZONTAL CIRCULAR CATEGORIES (Scrollable) -->
+      <section>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-black text-gray-900 tracking-tight flex items-center gap-1.5">
+            <span>Explore Menu</span>
+            <span class="text-[10px] font-normal text-gray-400">(9 Categories)</span>
+          </h3>
+          <span class="text-[11px] font-bold text-amber-600 hover:underline cursor-pointer" onclick="window.filterByCategory('all')">View All</span>
+        </div>
+
+        <div id="categoryContainer" class="flex items-center gap-3 overflow-x-auto no-scrollbar py-1 px-0.5">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- QUICK FILTERS / SORT CHIPS -->
+      <section class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+        <button class="filter-chip active text-[11px] font-bold px-3 py-1 rounded-full bg-amber-500 text-gray-950 shadow-sm whitespace-nowrap" data-filter="all">
+          <i class="fa-solid fa-utensils text-[9px] mr-1"></i> All Items
+        </button>
+        <button class="filter-chip text-[11px] font-bold px-3 py-1 rounded-full bg-white text-gray-700 border border-gray-200 hover:border-amber-400 whitespace-nowrap" data-filter="bestseller">
+          <i class="fa-solid fa-crown text-amber-500 text-[9px] mr-1"></i> Chef's Specials
+        </button>
+        <button class="filter-chip text-[11px] font-bold px-3 py-1 rounded-full bg-white text-gray-700 border border-gray-200 hover:border-amber-400 whitespace-nowrap" data-filter="low-price">
+          <i class="fa-solid fa-arrow-down-1-9 text-gray-500 text-[9px] mr-1"></i> Under ₹150
+        </button>
+        <button class="filter-chip text-[11px] font-bold px-3 py-1 rounded-full bg-white text-gray-700 border border-gray-200 hover:border-amber-400 whitespace-nowrap" data-filter="top-rated">
+          <i class="fa-solid fa-star text-amber-400 text-[9px] mr-1"></i> 4.8★+
+        </button>
+      </section>
+
+      <!-- FEATURED SPOTLIGHT CAROUSEL -->
+      <section id="featuredSection" class="pt-1">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-4 bg-amber-500 rounded-sm"></span>
+            <h3 class="text-sm font-black text-gray-900 tracking-tight">Today's Trending Specials</h3>
+          </div>
+          <span class="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">🔥 Top Picks</span>
+        </div>
+
+        <div id="featuredRow" class="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- ALL PRODUCTS GRID (2-Column Mobile Layout) -->
+      <section class="pt-1">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-4 bg-amber-600 rounded-sm"></span>
+            <h3 class="text-sm font-black text-gray-900 tracking-tight" id="menuSectionTitle">Complete Pure Veg Menu</h3>
+          </div>
+          <span id="itemCountDisplay" class="text-[11px] font-semibold text-gray-500">29 items</span>
+        </div>
+
+        <div id="productsGrid" class="grid grid-cols-2 gap-3">
+          <!-- Populated by JS -->
+        </div>
+
+        <div id="emptySearchState" class="hidden text-center py-10">
+          <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </div>
+          <h4 class="text-sm font-bold text-gray-800">No dishes found</h4>
+          <p class="text-xs text-gray-500 mt-1">Try searching for Paneer, Dosa, Roll or Chilly</p>
+          <button onclick="window.filterByCategory('all')" class="mt-3 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-300 px-3.5 py-1.5 rounded-full">
+            Show Full Menu
+          </button>
+        </div>
+      </section>
+
+      <!-- TRUST & QUALITY BANNER -->
+      <section class="bg-gradient-to-r from-amber-50 to-amber-100/60 rounded-xl p-3 border border-amber-200/80 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+          <i class="fa-solid fa-leaf"></i>
+        </div>
+        <div>
+          <h4 class="text-xs font-black text-gray-900">100% Pure Vegetarian Kitchen</h4>
+          <p class="text-[10px] text-gray-600 leading-tight mt-0.5">Strict hygiene, farm fresh cottage cheese, desi ghee gravies & zero contamination.</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- TAB VIEW 2: MY ORDERS SCREEN -->
+    <div id="ordersView" class="hidden flex-1 flex flex-col space-y-4 px-4 pt-3">
+      <div class="flex items-center justify-between border-b pb-2.5">
+        <div>
+          <h2 class="text-base font-black text-gray-900 flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-amber-500"></i> My Orders
+          </h2>
+          <p class="text-[10px] text-gray-500 font-medium">Synced with Firebase Firestore & Device Storage</p>
+        </div>
+        <button onclick="window.refreshOrdersList()" class="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-amber-600 flex items-center justify-center text-xs tap-bounce">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+
+      <div id="ordersListContainer" class="space-y-3.5">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- TAB VIEW 3: PROFILE SCREEN -->
+    <div id="profileView" class="hidden flex-1 flex flex-col space-y-4 px-4 pt-3">
+      <div class="flex items-center justify-between border-b pb-2.5">
+        <h2 class="text-base font-black text-gray-900 flex items-center gap-2">
+          <i class="fa-solid fa-user-circle text-amber-500"></i> Foodie Profile
+        </h2>
+        <span class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+          <i class="fa-solid fa-shield-heart text-xs"></i> 100% Pure Veg Member
+        </span>
+      </div>
+
+      <!-- Google User Profile Card -->
+      <div id="profileAuthCard" class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm space-y-3">
+        <div class="flex items-center gap-3">
+          <div id="profileAvatarContainer" class="w-13 h-13 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 text-gray-950 font-black text-xl flex items-center justify-center shadow-md overflow-hidden flex-shrink-0">
+            <i id="profileDefaultIcon" class="fa-solid fa-user"></i>
+            <img id="profileUserImg" src="" alt="Google Profile" class="hidden w-full h-full object-cover" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-sm font-black text-gray-900 truncate" id="profileNameDisplay">Guest Foodie</h3>
+            <p class="text-xs text-gray-500 truncate" id="profileEmailDisplay">Not signed in</p>
+            <div class="flex items-center gap-1.5 mt-1">
+              <span id="profileBadge" class="inline-block text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                Guest Mode
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Sign-in Action Button (Dynamic) -->
+        <div id="profileAuthActions" class="pt-1">
+          <button id="btnProfileGoogleSignIn" onclick="window.openGoogleAuthModal()" class="w-full bg-white hover:bg-gray-50 border border-gray-300 text-gray-800 font-bold text-xs py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 shadow-xs tap-bounce transition-all">
+            <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+            <span>Sign in with Google</span>
+          </button>
+
+          <button id="btnProfileSignOut" onclick="window.handleGoogleSignOut()" class="hidden w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 tap-bounce">
+            <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+            <span>Sign Out of Google</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Action Cards -->
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
+          <div class="text-gray-500 text-[10px] font-bold">Saved Addresses</div>
+          <div class="text-xs font-black text-gray-900 mt-1">1 Primary Address</div>
+          <div class="text-[10px] text-amber-600 mt-0.5">Main Road, Food Court</div>
+        </div>
+        <div class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
+          <div class="text-gray-500 text-[10px] font-bold">Favorite Dishes</div>
+          <div class="text-xs font-black text-gray-900 mt-1" id="profileFavCount">0 items</div>
+          <div class="text-[10px] text-emerald-600 mt-0.5">Pure Vegetarian</div>
+        </div>
+      </div>
+
+      <!-- Business Policies -->
+      <div class="bg-amber-50/70 rounded-2xl p-3.5 border border-amber-200/80 space-y-2 text-xs">
+        <h4 class="font-black text-amber-950 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-info text-amber-600"></i> Store Policies & Delivery
+        </h4>
+        <ul class="space-y-1.5 text-[11px] text-gray-700">
+          <li class="flex items-center gap-2">
+            <i class="fa-solid fa-check text-emerald-600"></i>
+            <span><b>Minimum Order:</b> ₹399</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <i class="fa-solid fa-check text-emerald-600"></i>
+            <span><b>Pay via UPI:</b> ₹0 Free Delivery</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <i class="fa-solid fa-check text-emerald-600"></i>
+            <span><b>Cash on Delivery (COD):</b> Flat ₹40 Delivery Fee</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <i class="fa-solid fa-check text-emerald-600"></i>
+            <span><b>No GST & No Hidden Platform Fees</b></span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Support Links -->
+      <div class="space-y-2 pt-1">
+        <a href="tel:+919876543210" class="w-full bg-white border border-gray-200 hover:border-amber-400 p-3 rounded-xl flex items-center justify-between text-xs font-bold text-gray-800 tap-bounce shadow-sm">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+              <i class="fa-solid fa-phone"></i>
+            </div>
+            <span>Call Restaurant (+91 98765 43210)</span>
+          </div>
+          <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+        </a>
+
+        <a href="https://wa.me/919876543210?text=Hello%20Hunger%20Zone!%20I%20have%20an%20order%20inquiry." target="_blank" class="w-full bg-white border border-gray-200 hover:border-emerald-400 p-3 rounded-xl flex items-center justify-between text-xs font-bold text-gray-800 tap-bounce shadow-sm">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <i class="fa-brands fa-whatsapp text-base"></i>
+            </div>
+            <span>Customer Support (WhatsApp)</span>
+          </div>
+          <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+        </a>
+      </div>
+
+      <div class="text-center pt-2">
+        <p class="text-[10px] text-gray-400">The Hunger Zone (Pure Veg) • App Version 2.4.0</p>
+      </div>
+    </div>
+
+    <!-- FLOATING QUICK CART BAR -->
+    <div id="floatingCartBar" class="hidden fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[390px] px-4 z-30 transition-all duration-300">
+      <div class="bg-gray-950 text-white rounded-2xl p-3 shadow-2xl flex items-center justify-between border border-amber-500/40">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500 text-gray-950 font-black flex items-center justify-center text-sm shadow-md">
+            <span id="floatingItemCount">1</span>
+          </div>
+          <div>
+            <div class="text-xs font-black text-white" id="floatingCartSummary">₹180 Total</div>
+            <div class="text-[10px] text-amber-400 font-medium" id="floatingMinOrderNotice">Min order ₹399</div>
+          </div>
+        </div>
+        <button id="btnFloatingViewCart" class="bg-gradient-to-r from-amber-400 to-amber-500 text-gray-950 text-xs font-black px-4 py-2 rounded-xl flex items-center gap-1.5 tap-bounce shadow-md">
+          <span>Checkout</span>
+          <i class="fa-solid fa-arrow-right text-[10px]"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM FIXED NAVIGATION BAR (5 Tabs) -->
+    <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200/90 px-2 py-2 flex items-center justify-around z-40 shadow-bottom-bar">
+      <button class="nav-tab active flex flex-col items-center gap-0.5 text-amber-500 font-bold tap-bounce w-14" data-target="home">
+        <i class="fa-solid fa-house text-lg"></i>
+        <span class="text-[10px]">Home</span>
+      </button>
+
+      <button class="nav-tab flex flex-col items-center gap-0.5 text-gray-500 hover:text-amber-500 font-medium tap-bounce w-14" data-target="menu">
+        <i class="fa-solid fa-book-open text-lg"></i>
+        <span class="text-[10px]">Menu</span>
+      </button>
+
+      <div class="relative -top-5 flex flex-col items-center">
+        <button id="btnCenterOrder" class="w-13 h-13 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 text-gray-950 flex items-center justify-center text-xl shadow-amber-glow border-4 border-white tap-bounce transition-transform active:scale-90" title="My Orders">
+          <i class="fa-solid fa-bag-shopping"></i>
+          <span id="centerCartBadge" class="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-gray-950 text-amber-400 text-[10px] font-black rounded-full flex items-center justify-center border border-white">0</span>
+        </button>
+        <span class="text-[10px] font-black text-gray-800 mt-1">Orders</span>
+      </div>
+
+      <button class="nav-tab flex flex-col items-center gap-0.5 text-gray-500 hover:text-amber-500 font-medium tap-bounce w-14" data-target="offers">
+        <i class="fa-solid fa-tag text-lg"></i>
+        <span class="text-[10px]">Offers</span>
+      </button>
+
+      <button class="nav-tab flex flex-col items-center gap-0.5 text-gray-500 hover:text-amber-500 font-medium tap-bounce w-14" data-target="profile">
+        <i class="fa-solid fa-user text-lg"></i>
+        <span class="text-[10px]">Profile</span>
+      </button>
+    </nav>
+
+    <!-- CHECKOUT MODAL (CART DRAWER) -->
+    <div id="cartModal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+      <div class="w-full max-w-md bg-white rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-slide-up">
+        
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-cream">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-800 flex items-center justify-center font-bold">
+              <i class="fa-solid fa-bag-shopping text-sm"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-black text-gray-900">Your Hunger Basket</h3>
+              <p class="text-[10px] text-gray-500" id="cartHeaderSubtitle">0 items selected</p>
+            </div>
+          </div>
+          <button id="btnCloseCart" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:text-gray-800 flex items-center justify-center text-sm tap-bounce">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-4">
+
+          <div id="cartEmptyView" class="py-10 text-center">
+            <div class="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center text-amber-500 text-3xl mx-auto mb-3">
+              <i class="fa-solid fa-bowl-food"></i>
+            </div>
+            <h4 class="text-base font-bold text-gray-900">Your basket is hungry!</h4>
+            <p class="text-xs text-gray-500 max-w-[220px] mx-auto mt-1">Explore our Pure Veg starters, dosas, curries & shakes to satisfy your cravings.</p>
+            <button onclick="window.closeCart();" class="mt-4 bg-amber-500 text-gray-950 font-black text-xs px-5 py-2.5 rounded-full shadow-md">
+              Start Adding Items
+            </button>
+          </div>
+
+          <div id="cartItemsList" class="space-y-2.5"></div>
+
+          <!-- MINIMUM ORDER VALUE WARNING BANNER -->
+          <div id="minOrderWarningBanner" class="p-3 rounded-2xl border transition-all">
+            <div class="flex items-start gap-2">
+              <i id="minOrderIcon" class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5 text-sm"></i>
+              <div class="flex-1">
+                <div id="minOrderMessage" class="text-xs font-black text-gray-900">
+                  Add items worth ₹399 more to place order (Min order ₹399)
+                </div>
+                <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-1.5">
+                  <div id="minOrderProgressBar" class="bg-amber-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PAYMENT METHOD SELECTION -->
+          <div id="cartPaymentSection" class="bg-white border border-gray-200 rounded-2xl p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                <i class="fa-solid fa-credit-card text-amber-500"></i> Select Payment Method
+              </h4>
+              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Secure Gateway</span>
+            </div>
+
+            <!-- Pay Online (UPI / QR) -->
+            <label class="payment-method-card flex items-center justify-between p-3 rounded-xl border-2 border-amber-500 bg-amber-50/40 cursor-pointer transition-all" onclick="window.selectPaymentMethod('online')">
+              <div class="flex items-center gap-2.5">
+                <input type="radio" name="paymentMethod" id="payOnline" value="online" checked class="text-amber-500 focus:ring-amber-500 w-4 h-4" />
+                <div>
+                  <div class="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                    <span>Pay Online (UPI / QR)</span>
+                    <span class="text-[9px] bg-emerald-600 text-white font-black px-1.5 py-0.5 rounded">FREE Delivery</span>
+                  </div>
+                  <div class="text-[10px] text-gray-500">GPay, PhonePe, Paytm, CRED & QR</div>
+                </div>
+              </div>
+              <span class="text-xs font-black text-emerald-600">₹0 Delivery</span>
+            </label>
+
+            <!-- Cash on Delivery (COD) -->
+            <label class="payment-method-card flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-amber-300 bg-white cursor-pointer transition-all" onclick="window.selectPaymentMethod('cod')">
+              <div class="flex items-center gap-2.5">
+                <input type="radio" name="paymentMethod" id="payCOD" value="cod" class="text-amber-500 focus:ring-amber-500 w-4 h-4" />
+                <div>
+                  <div class="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                    <span>Cash on Delivery (COD)</span>
+                    <span class="text-[9px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded">+₹40 Delivery</span>
+                  </div>
+                  <div class="text-[10px] text-gray-500">Pay cash upon home delivery</div>
+                </div>
+              </div>
+              <span class="text-xs font-black text-gray-900">₹40 Fee</span>
+            </label>
+          </div>
+
+          <!-- Coupon Code -->
+          <div id="cartCouponSection" class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3">
+            <div class="flex items-center justify-between text-xs font-bold text-amber-900 mb-1.5">
+              <span class="flex items-center gap-1.5">
+                <i class="fa-solid fa-ticket text-amber-600"></i> Have a coupon code?
+              </span>
+              <span id="couponStatusText" class="text-[10px] text-amber-700">Tap to apply</span>
+            </div>
+            <div class="flex gap-2">
+              <input 
+                type="text" 
+                id="couponInput" 
+                placeholder="VEG40 / HUNGER50" 
+                class="uppercase bg-white text-xs font-bold px-3 py-2 rounded-xl border border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-500 flex-1 placeholder-gray-400"
+              />
+              <button id="btnApplyCoupon" class="bg-amber-500 hover:bg-amber-600 text-gray-950 font-black text-xs px-3.5 py-2 rounded-xl tap-bounce">
+                Apply
+              </button>
+            </div>
+            <div class="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar">
+              <button onclick="window.quickApplyCoupon('VEG40')" class="text-[10px] font-bold bg-white text-amber-800 px-2 py-0.5 rounded-md border border-amber-300">VEG40 (-₹40)</button>
+              <button onclick="window.quickApplyCoupon('HUNGER50')" class="text-[10px] font-bold bg-white text-amber-800 px-2 py-0.5 rounded-md border border-amber-300">HUNGER50 (-₹50)</button>
+            </div>
+          </div>
+
+          <!-- Customer Address -->
+          <div id="cartCustomerSection" class="bg-white border border-gray-200 rounded-2xl p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                <i class="fa-solid fa-truck-fast text-amber-500"></i> Delivery Address & Info
+              </h4>
+              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">30 Mins Express</span>
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase">Customer Full Name</label>
+              <input 
+                type="text" 
+                id="custName" 
+                placeholder="e.g. Rahul Sharma" 
+                class="w-full text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase">10-Digit Mobile Number</label>
+              <input 
+                type="tel" 
+                id="custPhone" 
+                placeholder="e.g. 9876543210" 
+                maxlength="10"
+                class="w-full text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold text-gray-500 uppercase">Delivery Address / Flat / Floor</label>
+              <textarea 
+                id="custAddress" 
+                rows="2" 
+                placeholder="House/Flat No., Street, Landmark..." 
+                class="w-full text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-amber-500 resize-none"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Bill Summary -->
+          <div id="cartBillSection" class="bg-gray-50 rounded-2xl p-3.5 space-y-2 border border-gray-200/70 text-xs">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="text-xs font-black text-gray-900">Bill Summary</h4>
+              <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">No GST • No Platform Fee</span>
+            </div>
+
+            <div class="flex justify-between text-gray-600">
+              <span>Item Subtotal</span>
+              <span class="font-bold text-gray-900" id="billSubtotal">₹0</span>
+            </div>
+
+            <div class="flex justify-between text-gray-600">
+              <span id="billDeliveryLabel">Delivery Charge (Pay Online UPI)</span>
+              <span class="font-bold text-emerald-600" id="billDelivery">FREE (₹0)</span>
+            </div>
+
+            <div id="billDiscountRow" class="hidden flex justify-between text-emerald-600 font-bold">
+              <span>Coupon Discount</span>
+              <span id="billDiscount">-₹0</span>
+            </div>
+
+            <div class="pt-2 border-t border-gray-200 flex justify-between text-sm font-black text-gray-950">
+              <span>Grand Total</span>
+              <span class="text-amber-600 font-black text-base" id="billGrandTotal">₹0</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Checkout Action Button -->
+        <div class="p-4 border-t border-gray-100 bg-white">
+          <button id="btnPlaceOrder" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-gray-950 font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-amber-glow tap-bounce transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none">
+            <i class="fa-solid fa-lock text-xs"></i>
+            <span id="placeOrderBtnText">Proceed to Pay • ₹0</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- HIGH-END UPI PAYMENT GATEWAY MODAL -->
+    <div id="upiGatewayModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+      <div class="w-full max-w-sm bg-white rounded-3xl p-5 text-center shadow-2xl relative animate-slide-up border border-amber-300">
+        <button onclick="window.closeUPIGatewayModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+
+        <!-- UPI Header -->
+        <div class="flex items-center justify-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-full bg-amber-500 text-gray-950 font-black flex items-center justify-center text-xs">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <span class="text-xs font-black text-gray-900 uppercase tracking-wider">BHIM UPI Gateway</span>
+        </div>
+
+        <h3 class="text-xl font-black text-gray-950 mt-1" id="upiModalAmount">₹399</h3>
+        <p class="text-[11px] text-gray-500">Order ID: <span id="upiModalOrderId" class="font-bold text-gray-800">#THZ-9281</span></p>
+
+        <!-- Countdown Timer -->
+        <div class="mt-2.5 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-black px-3 py-1 rounded-full">
+          <i class="fa-regular fa-clock text-amber-600"></i>
+          <span>Session expires in: <span id="upiTimerDisplay" class="text-amber-700">05:00</span></span>
+        </div>
+
+        <!-- High-Resolution QR Code -->
+        <div class="mt-3.5 bg-cream p-3 rounded-2xl border-2 border-dashed border-amber-400 inline-block shadow-inner">
+          <svg class="w-36 h-36 mx-auto" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Authentic Stylized QR Pattern -->
+            <rect width="100" height="100" fill="#FFFBEB" rx="8"/>
+            <!-- Top-Left Target -->
+            <rect x="10" y="10" width="24" height="24" fill="#1F2937" rx="4"/>
+            <rect x="14" y="14" width="16" height="16" fill="#FFFBEB"/>
+            <rect x="18" y="18" width="8" height="8" fill="#D97706"/>
+            <!-- Top-Right Target -->
+            <rect x="66" y="10" width="24" height="24" fill="#1F2937" rx="4"/>
+            <rect x="70" y="14" width="16" height="16" fill="#FFFBEB"/>
+            <rect x="74" y="18" width="8" height="8" fill="#D97706"/>
+            <!-- Bottom-Left Target -->
+            <rect x="10" y="66" width="24" height="24" fill="#1F2937" rx="4"/>
+            <rect x="14" y="70" width="16" height="16" fill="#FFFBEB"/>
+            <rect x="18" y="74" width="8" height="8" fill="#D97706"/>
+            <!-- Data Grid Dots -->
+            <circle cx="42" cy="18" r="2.5" fill="#1F2937"/>
+            <circle cx="50" cy="14" r="2.5" fill="#D97706"/>
+            <circle cx="58" cy="20" r="2.5" fill="#1F2937"/>
+            <circle cx="40" cy="40" r="3.5" fill="#D97706"/>
+            <circle cx="50" cy="50" r="4" fill="#1F2937"/>
+            <circle cx="60" cy="40" r="3.5" fill="#D97706"/>
+            <circle cx="44" cy="62" r="2.5" fill="#1F2937"/>
+            <circle cx="54" cy="70" r="2.5" fill="#D97706"/>
+            <circle cx="70" cy="60" r="2.5" fill="#1F2937"/>
+            <circle cx="80" cy="74" r="2.5" fill="#D97706"/>
+            <circle cx="85" cy="85" r="3.5" fill="#1F2937"/>
+            <circle cx="72" cy="85" r="2.5" fill="#1F2937"/>
+          </svg>
+          <p class="text-[9px] font-bold text-gray-500 mt-1">Scan & Pay using any UPI App</p>
+        </div>
+
+        <!-- Selectable UPI Apps -->
+        <div class="mt-3">
+          <p class="text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Or Pay Directly with App</p>
+          <div class="grid grid-cols-4 gap-1.5">
+            <button onclick="window.simulateUPIAppPayment('Google Pay')" class="bg-gray-50 hover:bg-amber-50 border border-gray-200 rounded-xl p-2 flex flex-col items-center gap-1 tap-bounce">
+              <i class="fa-brands fa-google text-blue-500 text-sm"></i>
+              <span class="text-[9px] font-bold text-gray-800">GPay</span>
+            </button>
+            <button onclick="window.simulateUPIAppPayment('PhonePe')" class="bg-gray-50 hover:bg-amber-50 border border-gray-200 rounded-xl p-2 flex flex-col items-center gap-1 tap-bounce">
+              <i class="fa-solid fa-mobile-screen text-purple-600 text-sm"></i>
+              <span class="text-[9px] font-bold text-gray-800">PhonePe</span>
+            </button>
+            <button onclick="window.simulateUPIAppPayment('Paytm')" class="bg-gray-50 hover:bg-amber-50 border border-gray-200 rounded-xl p-2 flex flex-col items-center gap-1 tap-bounce">
+              <i class="fa-solid fa-wallet text-sky-500 text-sm"></i>
+              <span class="text-[9px] font-bold text-gray-800">Paytm</span>
+            </button>
+            <button onclick="window.simulateUPIAppPayment('CRED')" class="bg-gray-50 hover:bg-amber-50 border border-gray-200 rounded-xl p-2 flex flex-col items-center gap-1 tap-bounce">
+              <i class="fa-solid fa-circle-nodes text-gray-900 text-sm"></i>
+              <span class="text-[9px] font-bold text-gray-800">CRED</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Verify Payment Simulator Button -->
+        <div class="mt-4">
+          <button id="btnSimulateVerifyUPI" onclick="window.confirmAndVerifyUPIPayment()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-black text-xs py-3.5 rounded-xl shadow-lg shadow-emerald-600/30 tap-bounce flex items-center justify-center gap-1.5 transition-all">
+            <i class="fa-solid fa-shield-check"></i>
+            <span>I Have Paid • Verify & Confirm</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDER CONFIRMATION / SUCCESS MODAL -->
+    <div id="orderSuccessModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+      <div class="w-full max-w-sm bg-white rounded-3xl p-6 text-center shadow-2xl relative animate-slide-up border border-emerald-300">
+        <button onclick="window.closeOrderSuccessModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+
+        <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-3 shadow-inner">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+
+        <span class="bg-amber-100 text-amber-900 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+          Payment Verified • Order Placed!
+        </span>
+
+        <h3 class="text-lg font-black text-gray-900 mt-2">The Hunger Zone is preparing your feast!</h3>
+        <p class="text-xs text-gray-500 mt-1">Order ID: <span id="confirmedOrderId" class="font-bold text-gray-900">#THZ-9281</span></p>
+
+        <!-- Live Kitchen Status Tracker -->
+        <div class="mt-4 bg-cream rounded-2xl p-3 border border-amber-200/70 text-left space-y-2.5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">
+              <i class="fa-solid fa-check"></i>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-gray-900">Order Confirmed</div>
+              <div class="text-[9px] text-gray-500">Sent directly to Pure Veg Kitchen</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-amber-500 text-gray-950 flex items-center justify-center text-xs animate-pulse font-black">
+              <i class="fa-solid fa-fire-burner"></i>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-gray-900">Preparing in Kitchen</div>
+              <div class="text-[9px] text-amber-800 font-semibold">Tandoor & Desi Ghee preparation in progress</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2.5 opacity-60">
+            <div class="w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-motorcycle"></i>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-gray-700">Out for Delivery 🛵</div>
+              <div class="text-[9px] text-gray-400">Driver will be dispatched in 15 mins</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3.5 p-3 bg-gray-50 rounded-xl text-xs space-y-1.5">
+          <div class="flex justify-between items-center text-gray-600">
+            <span>Payment Mode:</span>
+            <span class="font-bold text-gray-900" id="confirmedOrderPayment">Pay Online (UPI)</span>
+          </div>
+          <div class="flex justify-between items-center text-gray-600">
+            <span>Total Paid:</span>
+            <span class="text-amber-600 font-black text-sm" id="confirmedOrderTotal">₹0</span>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <button onclick="window.viewMyOrdersAfterSuccess()" class="bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-xs py-3 rounded-xl tap-bounce">
+            View My Orders
+          </button>
+          <button onclick="window.closeOrderSuccessModal()" class="bg-amber-500 hover:bg-amber-600 text-gray-950 font-black text-xs py-3 rounded-xl shadow-md tap-bounce">
+            Back to Home
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OFFERS MODAL -->
+    <div id="offersModal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
+      <div class="w-full max-w-md bg-white rounded-t-3xl max-h-[85vh] flex flex-col overflow-hidden p-5 space-y-4 animate-slide-up">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-sm font-black text-gray-900 flex items-center gap-2">
+            <i class="fa-solid fa-gift text-amber-500"></i> Hunger Zone Exclusive Offers
+          </h3>
+          <button onclick="window.closeOffersModal()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3 overflow-y-auto">
+          <div class="border-2 border-dashed border-amber-300 bg-amber-50/50 rounded-2xl p-3.5 flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="bg-amber-500 text-gray-950 text-[10px] font-black px-2 py-0.5 rounded">VEG40</span>
+                <span class="text-xs font-bold text-gray-900">Flat ₹40 OFF</span>
+              </div>
+              <p class="text-[10px] text-gray-500 mt-1">Applicable on orders above ₹399</p>
+            </div>
+            <button onclick="window.applyFromOffers('VEG40')" class="bg-amber-500 text-gray-950 text-xs font-black px-3.5 py-1.5 rounded-lg tap-bounce">
+              Apply
+            </button>
+          </div>
+
+          <div class="border-2 border-dashed border-amber-300 bg-amber-50/50 rounded-2xl p-3.5 flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="bg-amber-500 text-gray-950 text-[10px] font-black px-2 py-0.5 rounded">HUNGER50</span>
+                <span class="text-xs font-bold text-gray-900">Flat ₹50 OFF</span>
+              </div>
+              <p class="text-[10px] text-gray-500 mt-1">Special weekend feast savings</p>
+            </div>
+            <button onclick="window.applyFromOffers('HUNGER50')" class="bg-amber-500 text-gray-950 text-xs font-black px-3.5 py-1.5 rounded-lg tap-bounce">
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GOOGLE SIGN-IN MODAL -->
+    <div id="googleAuthModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+      <div class="w-full max-w-sm bg-white rounded-3xl p-6 text-center shadow-2xl relative animate-slide-up border border-gray-200">
+        <button onclick="window.closeGoogleAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+
+        <div class="w-12 h-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center mx-auto mb-3">
+          <svg class="w-6 h-6" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        </div>
+
+        <h3 class="text-base font-black text-gray-900">Sign in with Google</h3>
+        <p class="text-xs text-gray-500 mt-1 leading-snug">Connect your Google account to auto-fill delivery info & track real-time orders.</p>
+
+        <!-- Quick 1-Tap Account Selector -->
+        <div class="mt-4 p-3 bg-gray-50 hover:bg-amber-50/60 rounded-2xl border border-gray-200 cursor-pointer flex items-center gap-3 transition-colors text-left tap-bounce" onclick="window.confirmGoogleLogin('rk608290@gmail.com', 'Rohit Kumar')">
+          <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80" alt="Avatar" class="w-10 h-10 rounded-full border border-amber-400 object-cover flex-shrink-0" />
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-black text-gray-900 truncate">Rohit Kumar</div>
+            <div class="text-[11px] text-gray-500 truncate">rk608290@gmail.com</div>
+          </div>
+          <i class="fa-solid fa-arrow-right text-xs text-amber-600"></i>
+        </div>
+
+        <div class="mt-3 flex items-center gap-2">
+          <span class="h-px bg-gray-200 flex-1"></span>
+          <span class="text-[10px] text-gray-400 font-bold uppercase">Or custom email</span>
+          <span class="h-px bg-gray-200 flex-1"></span>
+        </div>
+
+        <div class="mt-3 space-y-2 text-left">
+          <input type="email" id="googleCustomEmail" placeholder="yourname@gmail.com" class="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500" />
+          <button onclick="window.confirmCustomGoogleLogin()" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-950 font-black text-xs py-2.5 rounded-xl tap-bounce">
+            Continue with this Google Email
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS DRAWER -->
+    <div id="notificationsModal" class="hidden fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-16">
+      <div class="w-full max-w-sm bg-white rounded-2xl p-4 shadow-2xl space-y-3 animate-slide-up">
+        <div class="flex items-center justify-between border-b pb-2">
+          <h4 class="text-xs font-black text-gray-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-bell text-amber-500"></i> Notifications
+          </h4>
+          <button onclick="window.closeNotificationsModal()" class="text-gray-400 hover:text-gray-600 text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="space-y-2 text-xs">
+          <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
+            <div class="font-bold text-amber-900">🎉 Min Order ₹399 with FREE Delivery!</div>
+            <div class="text-[10px] text-gray-600 mt-0.5">Pay via UPI to get ₹0 delivery fee on your entire order.</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-gray-50 border border-gray-200">
+            <div class="font-bold text-gray-800">🔥 Chef's Hot Pick</div>
+            <div class="text-[10px] text-gray-600 mt-0.5">Try Paneer Butter Masala & Garlic Naan fresh from clay tandoor!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-full max-w-xs px-4"></div>
+
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT MODULE -->
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
